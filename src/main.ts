@@ -10,14 +10,18 @@ function deleteTailwindCollections() {
   }
 }
 
-function createColorVariable(name: string, value: string, collection: VariableCollection, mode: { modeId: string }) {
+function createVariable(prefix: string, name: string, value: string | number, collection: VariableCollection, mode: { modeId: string }, type: 'BOOLEAN' | 'COLOR' | 'FLOAT' | 'STRING') {
+  let val: string | number | RGB = value 
+  if (type === 'COLOR' && typeof value === 'string') {
+    val = figma.util.rgb(value)
+  }
   const variable = figma.variables.createVariable(
-    `color/${name}`,
+    `${prefix}/${name}`,
     collection,
-    'COLOR'
+    type
   );
 
-  variable.setValueForMode(mode.modeId, figma.util.rgb(value))
+  variable.setValueForMode(mode.modeId, val)
 }
 
 type ColorObject = {
@@ -28,13 +32,13 @@ type ColorObject = {
 function createColorVariablesFromObject(object: ColorObject, collection: VariableCollection, mode: { modeId: string }) {
   Object.entries(object).forEach(([name, value]): void => {
     if (typeof value === 'string') {
-      createColorVariable(name, value, collection, mode)
+      createVariable("color", name, value, collection, mode, 'COLOR')
       return
     }
 
 
     Object.entries(value).forEach(([key, value]): void => {
-      createColorVariable(`${name}/${key}`, value, collection, mode)
+      createVariable(`color/${name}`, key, value, collection, mode, 'COLOR')
     })
   })
 }
@@ -56,6 +60,14 @@ function createSpacingVariables(collection: VariableCollection, mode: { modeId: 
   }
 }
 
+
+
+function createVariablesFromObject(prefix: string, object: { [key: string]: number | string }, collection: VariableCollection, mode: { modeId: string }, type: 'BOOLEAN' | 'COLOR' | 'FLOAT' | 'STRING') {
+  Object.entries(object).forEach(([name, value]): void => {
+    createVariable(prefix, name, value, collection, mode, type)
+  })
+}
+
 export default function (): void {
   deleteTailwindCollections();
 
@@ -63,10 +75,8 @@ export default function (): void {
   const collection = figma.variables.createVariableCollection('Tailwind');
   const mode = collection.modes[0]
 
-  const colors = tailwind.colors
-  createColorVariablesFromObject(colors, collection, mode)
-
+  createColorVariablesFromObject(tailwind.colors, collection, mode)
   createSpacingVariables(collection, mode)
-  
+  createVariablesFromObject('blur', tailwind.blur, collection, mode, 'FLOAT')
   figma.closePlugin('Collection created')
 }
